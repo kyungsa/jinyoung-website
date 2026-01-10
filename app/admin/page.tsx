@@ -5,15 +5,17 @@ import { createClient } from '@supabase/supabase-js';
 const supabase = createClient('https://hpkhxnjstxghtmkpdyyq.supabase.co', 'sb_publishable_Nzr0Zrtp2Qt0pnY0g7PNfA_XgGmN7_q');
 
 export default function Home() {
-  // 형식을 <any[]>로 지정하여 컴퓨터의 간섭을 차단합니다.
-  const [products, setProducts] = useState<any[]>([]);
+  // 상자의 형식을 임시로 완전히 풀어버려 에러를 방지합니다.
+  const [products, setProducts] = useState<any>([]);
   const [contact, setContact] = useState({ name: '', phone: '', content: '' });
 
   useEffect(() => {
     async function fetchProducts() {
       const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      // data as any[] 처리를 통해 pp.png의 19라인 에러를 해결합니다.
-      if (data) setProducts(data as any[]);
+      // qq.png의 19라인 에러를 원천 차단하는 가장 확실한 방법입니다.
+      if (data) {
+        setProducts(data);
+      }
     }
     fetchProducts();
   }, []);
@@ -21,7 +23,7 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const { error } = await supabase.from('contacts').insert([contact]);
-    if (error) alert('전송 실패: ' + error.message);
+    if (error) alert('전송 실패');
     else {
       alert('문의가 접수되었습니다!');
       setContact({ name: '', phone: '', content: '' });
@@ -38,7 +40,7 @@ export default function Home() {
       <section style={{ marginBottom: '60px' }}>
         <h2>제품 안내</h2>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' }}>
-          {products.map((product: any) => (
+          {products && products.map((product: any) => (
             <div key={product.id} style={{ border: '1px solid #eee', padding: '20px', textAlign: 'center' }}>
               <img src={product.image_url} alt={product.title} style={{ width: '100%', height: '200px', objectFit: 'contain' }} />
               <h3>{product.title}</h3>
