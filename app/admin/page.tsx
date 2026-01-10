@@ -1,115 +1,99 @@
 'use client';
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase 연결 설정
-const supabase = createClient(
-  'https://hpkhxnjstxghtmkpdyyq.supabase.co', 
-  'sb_publishable_Nzr0Zrtp2Qt0pnY0g7PNfA_XgGmN7_q'
-);
+const supabase = createClient('https://hpkhxnjstxghtmkpdyyq.supabase.co', 'sb_publishable_Nzr0Zrtp2Qt0pnY0g7PNfA_XgGmN7_q');
 
-export default function Home() {
-  const [products, setProducts] = useState([]);
-  const [contact, setContact] = useState({ name: '', phone: '', content: '' });
+export default function AdminPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [products, setProducts] = useState<any[]>([]); // 형식을 미리 지정
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('products');
 
-  // 1. 제품 목록 불러오기
-  useEffect(() => {
-    async function fetchProducts() {
-      const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-      if (data) setProducts(data as any);
-    }
-    fetchProducts();
-  }, []);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  // 2. 문의하기 전송 함수
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const { error } = await supabase.from('contacts').insert([contact]);
-    if (error) {
-      alert('전송 실패: ' + error.message);
-    } else {
-      alert('문의가 접수되었습니다. 곧 연락드리겠습니다!');
-      setContact({ name: '', phone: '', content: '' });
-    }
+  const handleLogin = () => {
+    if (email === 'admin@jinyoung.com' && password === '123456') {
+      setIsLoggedIn(true);
+      fetchData();
+    } else { alert('로그인 실패'); }
   };
 
+  const fetchData = async () => {
+    const { data: pData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (pData) setProducts(pData as any); // as any 추가로 에러 해결
+    const { data: cData } = await supabase.from('contacts').select('*').order('created_at', { ascending: false });
+    if (cData) setContacts(cData as any);
+  };
+
+  const handleUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file || !title) return alert('제품명을 먼저 입력하세요');
+    setUploading(true);
+    try {
+      const fileName = `${Date.now()}_${file.name}`;
+      await supabase.storage.from('images').upload(fileName, file);
+      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
+      await supabase.from('products').insert([{ title, description, image_url: publicUrl }]);
+      alert('등록 성공!');
+      setTitle(''); setDescription(''); fetchData();
+    } finally { setUploading(false); }
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div style={{ padding: '100px 20px', textAlign: 'center' }}>
+        <h2>(주)진영 이엔지 관리자</h2>
+        <input type="text" placeholder="아이디" onChange={e => setEmail(e.target.value)} style={{ padding: '10px', marginBottom: '5px' }} /><br/>
+        <input type="password" placeholder="비밀번호" onChange={e => setPassword(e.target.value)} style={{ padding: '10px', marginBottom: '10px' }} /><br/>
+        <button onClick={handleLogin} style={{ padding: '10px 20px', backgroundColor: '#0056b3', color: 'white', border: 'none', borderRadius: '5px' }}>로그인</button>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ padding: '0', margin: '0', fontFamily: '"Pretendard", "Malgun Gothic", sans-serif', color: '#333', backgroundColor: '#fff' }}>
-      
-      {/* 헤더 섹션 */}
-      <header style={{ backgroundColor: '#fff', borderBottom: '2px solid #0056b3', padding: '40px 20px', textAlign: 'center' }}>
-        <h1 style={{ color: '#0056b3', fontSize: '2.5rem', margin: '0 0 10px 0', fontWeight: '800' }}>(주)진영 이엔지</h1>
-        <p style={{ fontSize: '1.2rem', color: '#666', margin: '0' }}>최고의 기술력으로 응답하는 대형표시기 및 자동화 시스템 전문 기업</p>
-      </header>
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+        <button onClick={() => setActiveTab('products')} style={{ padding: '10px 20px', backgroundColor: activeTab === 'products' ? '#0056b3' : '#eee', color: activeTab === 'products' ? 'white' : 'black' }}>제품 관리</button>
+        <button onClick={() => setActiveTab('contacts')} style={{ padding: '10px 20px', backgroundColor: activeTab === 'contacts' ? '#0056b3' : '#eee', color: activeTab === 'contacts' ? 'white' : 'black' }}>문의 확인</button>
+      </div>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 20px' }}>
-        
-        {/* 제품 안내 섹션 */}
-        <section style={{ marginBottom: '80px' }}>
-          <h2 style={{ borderLeft: '6px solid #0056b3', paddingLeft: '15px', marginBottom: '40px', fontSize: '1.8rem' }}>제품 안내</h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '30px' }}>
-            {products.length > 0 ? (
-              products.map((product: any) => (
-                <div key={product.id} style={{ border: '1px solid #eee', borderRadius: '15px', padding: '20px', textAlign: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.08)', transition: 'transform 0.2s' }}>
-                  <div style={{ height: '250px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', backgroundColor: '#f9f9f9', borderRadius: '10px' }}>
-                    <img src={product.image_url} alt={product.title} style={{ maxWidth: '90%', maxHeight: '90%', objectFit: 'contain' }} />
-                  </div>
-                  <h3 style={{ fontSize: '1.4rem', margin: '0 0 10px 0', color: '#222' }}>{product.title}</h3>
-                  <p style={{ color: '#777', fontSize: '1rem', lineHeight: '1.6', height: '50px', overflow: 'hidden' }}>{product.description}</p>
-                </div>
-              ))
-            ) : (
-              <p style={{ textAlign: 'center', gridColumn: '1/-1', color: '#999' }}>등록된 제품이 없습니다. 관리자 페이지에서 제품을 등록해주세요.</p>
-            )}
-          </div>
-        </section>
-
-        {/* 찾아오시는 길 섹션 (지도 연결) */}
-        <section style={{ marginBottom: '80px' }}>
-          <h2 style={{ borderLeft: '6px solid #0056b3', paddingLeft: '15px', marginBottom: '40px', fontSize: '1.8rem' }}>찾아오시는 길</h2>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', alignItems: 'stretch' }}>
-            <div 
-              onClick={() => window.open('https://map.naver.com/v5/search/서울 영등포구 양산로3길 15', '_blank')}
-              style={{ flex: '1 1 500px', height: '350px', backgroundColor: '#e9ecef', borderRadius: '15px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', border: '1px solid #ddd', backgroundImage: 'linear-gradient(rgba(0,0,0,0.1), rgba(0,0,0,0.1)), url("https://images.unsplash.com/photo-1526778548025-fa2f459cd5c1?auto=format&fit=crop&w=1000&q=80")', backgroundSize: 'cover', backgroundPosition: 'center' }}
-            >
-              <div style={{ backgroundColor: 'rgba(255,255,255,0.9)', padding: '20px 40px', borderRadius: '50px', boxShadow: '0 4px 15px rgba(0,0,0,0.2)', fontWeight: 'bold', color: '#0056b3' }}>
-                📍 네이버 지도로 위치 보기 (클릭)
+      {activeTab === 'products' ? (
+        <div>
+          <h3>📦 제품 등록</h3>
+          <input type="text" placeholder="제품명" value={title} onChange={e => setTitle(e.target.value)} style={{ width: '100%', marginBottom: '10px', padding: '10px' }} />
+          <textarea placeholder="설명" value={description} onChange={e => setDescription(e.target.value)} style={{ width: '100%', marginBottom: '10px', padding: '10px' }} />
+          <input type="file" onChange={handleUpload} disabled={uploading} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginTop: '20px' }}>
+            {products.map((p: any) => (
+              <div key={p.id} style={{ border: '1px solid #ddd', padding: '10px' }}>
+                <img src={p.image_url} style={{ width: '100%' }} />
+                <p>{p.title}</p>
+                <button onClick={async () => { if(confirm('삭제?')) { await supabase.from('products').delete().eq('id', p.id); fetchData(); } }}>삭제</button>
               </div>
-            </div>
-            <div style={{ flex: '1 1 350px', padding: '40px', backgroundColor: '#f8f9fa', borderRadius: '15px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <h3 style={{ marginTop: 0, color: '#0056b3', fontSize: '1.6rem', marginBottom: '20px' }}>(주)진영 이엔지 본사</h3>
-              <p style={{ fontSize: '1.1rem', lineHeight: '1.9', margin: 0 }}>
-                <strong>주소:</strong> 서울특별시 영등포구 양산로3길 15, 1층<br/>
-                <strong>지번:</strong> 양평동3가 30-30<br/><br/>
-                <strong>대표전화:</strong> 02-2631-5760<br/>
-                <strong>팩스:</strong> 02-2631-5762<br/>
-                <strong>이메일:</strong> jinyoung@jinyoung.com
-              </p>
-            </div>
+            ))}
           </div>
-        </section>
-
-        {/* 온라인 문의 섹션 */}
-        <section style={{ backgroundColor: '#0056b3', padding: '60px 20px', borderRadius: '20px', color: '#fff' }}>
-          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '10px' }}>온라인 견적 문의</h2>
-            <p style={{ textAlign: 'center', marginBottom: '40px', opacity: '0.9' }}>궁금하신 점을 남겨주시면 담당자가 빠르게 연락드리겠습니다.</p>
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <input type="text" placeholder="성함 / 업체명" required value={contact.name} onChange={e => setContact({...contact, name: e.target.value})} style={{ padding: '15px', borderRadius: '8px', border: 'none', fontSize: '1rem' }} />
-                <input type="text" placeholder="연락처 (예: 010-0000-0000)" required value={contact.phone} onChange={e => setContact({...contact, phone: e.target.value})} style={{ padding: '15px', borderRadius: '8px', border: 'none', fontSize: '1rem' }} />
-              </div>
-              <textarea placeholder="문의하실 제품과 상세 내용을 입력해주세요." required value={contact.content} onChange={e => setContact({...contact, content: e.target.value})} style={{ width: '100%', padding: '15px', borderRadius: '8px', border: 'none', fontSize: '1rem', height: '150px', marginBottom: '25px', boxSizing: 'border-box' }} />
-              <button type="submit" style={{ width: '100%', padding: '18px', backgroundColor: '#ffcc00', color: '#000', border: 'none', borderRadius: '8px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.3s' }}>문의하기 전송</button>
-            </form>
-          </div>
-        </section>
-
-      </main>
-
-      <footer style={{ backgroundColor: '#333', color: '#fff', padding: '40px 20px', textAlign: 'center', marginTop: '80px' }}>
-        <p style={{ margin: '0', opacity: '0.7' }}>© 2026 (주)진영 이엔지. All Rights Reserved.</p>
-      </footer>
+        </div>
+      ) : (
+        <div>
+          <h3>📩 문의 목록</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr style={{ backgroundColor: '#f4f4f4' }}><th>날짜</th><th>업체명</th><th>연락처</th><th>내용</th></tr></thead>
+            <tbody>
+              {contacts.map((c: any) => (
+                <tr key={c.id}>
+                  <td>{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td>{c.name}</td><td>{c.phone}</td><td>{c.content}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
