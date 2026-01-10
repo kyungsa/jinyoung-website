@@ -89,27 +89,56 @@ export default function Home() {
           </div>
         </section>
 
-        {/* 온라인 문의 섹션 */}
-        <section style={{ backgroundColor: '#0056b3', padding: '60px 20px', borderRadius: '20px', color: '#fff' }}>
-          <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-            <h2 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '10px' }}>온라인 견적 문의</h2>
-            <p style={{ textAlign: 'center', marginBottom: '40px', opacity: '0.9' }}>궁금하신 점을 남겨주시면 담당자가 빠르게 연락드리겠습니다.</p>
-            <form onSubmit={handleSubmit}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
-                <input type="text" placeholder="성함 / 업체명" required value={contact.name} onChange={e => setContact({...contact, name: e.target.value})} style={{ padding: '15px', borderRadius: '8px', border: 'none', fontSize: '1rem' }} />
-                <input type="text" placeholder="연락처 (예: 010-0000-0000)" required value={contact.phone} onChange={e => setContact({...contact, phone: e.target.value})} style={{ padding: '15px', borderRadius: '8px', border: 'none', fontSize: '1rem' }} />
-              </div>
-              <textarea placeholder="문의하실 제품과 상세 내용을 입력해주세요." required value={contact.content} onChange={e => setContact({...contact, content: e.target.value})} style={{ width: '100%', padding: '15px', borderRadius: '8px', border: 'none', fontSize: '1rem', height: '150px', marginBottom: '25px', boxSizing: 'border-box' }} />
-              <button type="submit" style={{ width: '100%', padding: '18px', backgroundColor: '#ffcc00', color: '#000', border: 'none', borderRadius: '8px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer', transition: 'background 0.3s' }}>문의하기 전송</button>
-            </form>
-          </div>
-        </section>
+        /* 온라인 문의 섹션 */
+<section id="contact" style={{ backgroundColor: '#0056b3', padding: '60px 20px', borderRadius: '20px', color: '#fff' }}>
+  <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+    <h2 style={{ textAlign: 'center', fontSize: '2rem', marginBottom: '10px' }}>온라인 견적 문의</h2>
+    <p style={{ textAlign: 'center', marginBottom: '40px', opacity: '0.9' }}>궁금하신 점을 남겨주시면 담당자가 빠르게 연락드리겠습니다.</p>
+    
+    <form onSubmit={async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.currentTarget);
+      const name = formData.get('name');
+      const phone = formData.get('phone');
+      const message = formData.get('message');
 
-      </main>
-
-      <footer style={{ backgroundColor: '#333', color: '#fff', padding: '40px 20px', textAlign: 'center', marginTop: '80px' }}>
-        <p style={{ margin: '0', opacity: '0.7' }}>© 2026 (주)진영 이엔지. All Rights Reserved.</p>
-      </footer>
-    </div>
-  );
-}
+      const { error } = await supabase.from('contacts').insert([{ name, phone, message }]);
+      
+      if (error) {
+        alert('전송 실패: ' + error.message);
+      } else {
+        alert('문의가 성공적으로 접수되었습니다!');
+        e.currentTarget.reset();
+      }
+    }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+        <input 
+          name="name"
+          type="text" 
+          placeholder="성함 / 업체명" 
+          required 
+          style={{ padding: '18px', borderRadius: '8px', border: 'none', color: '#333' }} 
+        />
+        <input 
+          name="phone"
+          type="text" 
+          placeholder="연락처 (예: 010-0000-0000)" 
+          required 
+          style={{ padding: '18px', borderRadius: '8px', border: 'none', color: '#333' }} 
+        />
+      </div>
+      <textarea 
+        name="message"
+        placeholder="문의하실 제품과 상세 내용을 입력해주세요." 
+        required 
+        style={{ width: '100%', padding: '18px', borderRadius: '8px', border: 'none', height: '150px', marginBottom: '20px', color: '#333', boxSizing: 'border-box' }} 
+      />
+      <button 
+        type="submit" 
+        style={{ width: '100%', padding: '18px', backgroundColor: '#ffcc00', color: '#333', border: 'none', borderRadius: '8px', fontSize: '1.2rem', fontWeight: 'bold', cursor: 'pointer' }}
+      >
+        문의하기 전송
+      </button>
+    </form>
+  </div>
+</section>      
