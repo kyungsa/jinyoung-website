@@ -10,89 +10,109 @@ export default function AdminPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [products, setProducts] = useState([]);
+  const [contacts, setContacts] = useState([]); // 문의 목록 상태
   const [uploading, setUploading] = useState(false);
-
-  // 제품 등록용 상태
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
 
   const handleLogin = () => {
     if (email === 'admin@jinyoung.com' && password === '123456') {
       setIsLoggedIn(true);
-      fetchProducts();
+      fetchData();
     } else { alert('로그인 실패'); }
   };
 
-  const fetchProducts = async () => {
-    const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    if (data) setProducts(data);
+  const fetchData = async () => {
+    // 제품 목록 가져오기
+    const { data: pData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (pData) setProducts(pData);
+    
+    // 문의 목록 가져오기
+    const { data: cData } = await supabase.from('contacts').select('*').order('created_at', { ascending: false });
+    if (cData) setContacts(cData);
   };
 
-  // 🚀 사진 업로드 및 제품 등록 함수
   const handleUpload = async (e: any) => {
     const file = e.target.files?.[0];
     if (!file || !title) return alert('제품명을 입력하고 사진을 선택하세요!');
-    
     setUploading(true);
     try {
-      const fileName = `${Date.now()}_${file.name}`;
-      // 1. 이미지 창고(Storage)에 저장
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`; // 한글 파일명 방지
       const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
       if (uploadError) throw uploadError;
-
-      // 2. 이미지 주소 가져오기
       const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
-
-      // 3. 데이터베이스(DB)에 제품 정보 저장
-      const { error: dbError } = await supabase.from('products').insert([
-        { title, description, image_url: publicUrl }
-      ]);
-      if (dbError) throw dbError;
-
-      alert('제품이 성공적으로 등록되었습니다!');
-      setTitle(''); setDescription(''); fetchProducts();
-    } catch (error) {
-      alert('등록 중 오류 발생: ' + error.message);
-    } finally {
-      setUploading(false);
-    }
+      await supabase.from('products').insert([{ title, description, image_url: publicUrl }]);
+      alert('제품 등록 완료!');
+      setTitle(''); fetchData();
+    } catch (error) { alert('오류: ' + error.message); }
+    finally { setUploading(false); }
   };
 
   if (!isLoggedIn) {
     return (
-      <div style={{ padding: '100px 20px', textAlign: 'center' }}>
-        <h2>(주)진영 이엔지 관리자</h2>
-        <input type="text" placeholder="아이디" onChange={e => setEmail(e.target.value)} style={{ padding: '10px', marginBottom: '5px' }} /><br/>
-        <input type="password" placeholder="비밀번호" onChange={e => setPassword(e.target.value)} style={{ padding: '10px', marginBottom: '10px' }} /><br/>
-        <button onClick={handleLogin} style={{ padding: '10px 20px', backgroundColor: '#0056b3', color: 'white', border: 'none' }}>로그인</button>
+      <div style={{ padding: '100px 20px', textAlign: 'center', fontFamily: 'sans-serif' }}>
+        <h2>(주)진영 이엔지 관리자 로그인</h2>
+        <input type="text" placeholder="아이디" onChange={e => setEmail(e.target.value)} style={{ padding: '10px', marginBottom: '5px', width: '200px' }} /><br/>
+        <input type="password" placeholder="비밀번호" onChange={e => setPassword(e.target.value)} style={{ padding: '10px', marginBottom: '10px', width: '200px' }} /><br/>
+        <button onClick={handleLogin} style={{ padding: '10px 20px', backgroundColor: '#0056b3', color: 'white', border: 'none', cursor: 'pointer' }}>로그인</button>
       </div>
     );
   }
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1>📦 제품 등록 센터</h1>
-      <div style={{ border: '1px solid #ddd', padding: '20px', borderRadius: '10px', backgroundColor: '#f9f9f9' }}>
-        <h3>새 제품 추가</h3>
-        <input type="text" placeholder="제품명 (예: JY-330-8A)" value={title} onChange={e => setTitle(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px' }} />
-        <input type="text" placeholder="설명 (예: 대형표시기)" value={description} onChange={e => setDescription(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px' }} />
-        <p>사진 선택:</p>
-        <input type="file" onChange={handleUpload} disabled={uploading} />
-        {uploading && <p style={{ color: 'blue' }}>업로드 중입니다... 잠시만 기다려주세요.</p>}
-      </div>
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+      <h1 style={{ borderBottom: '2px solid #333', paddingBottom: '10px' }}>🛠️ 통합 관리 시스템</h1>
+      
+      {/* 1. 제품 등록 섹션 */}
+      <section style={{ marginBottom: '50px', backgroundColor: '#f4f4f4', padding: '20px', borderRadius: '8px' }}>
+        <h2>📦 제품 등록</h2>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+          <input type="text" placeholder="제품명" value={title} onChange={e => setTitle(e.target.value)} style={{ flex: 1, padding: '10px' }} />
+          <input type="text" placeholder="설명" value={description} onChange={e => setDescription(e.target.value)} style={{ flex: 1, padding: '10px' }} />
+        </div>
+        <input type="file" onChange={handleUpload} disabled={uploading} style={{ marginBottom: '10px' }} />
+        {uploading && <p style={{ color: 'blue' }}>업로드 중...</p>}
+        
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px', marginTop: '20px' }}>
+          {products.map((p) => (
+            <div key={p.id} style={{ border: '1px solid #ddd', padding: '5px', textAlign: 'center', backgroundColor: 'white' }}>
+              <img src={p.image_url} style={{ width: '100%', height: '80px', objectFit: 'contain' }} />
+              <p style={{ fontSize: '12px', margin: '5px 0' }}>{p.title}</p>
+              <button onClick={async () => { if(confirm('삭제할까요?')) { await supabase.from('products').delete().eq('id', p.id); fetchData(); } }} style={{ fontSize: '10px', color: 'red' }}>삭제</button>
+            </div>
+          ))}
+        </div>
+      </section>
 
-      <hr style={{ margin: '40px 0' }} />
-
-      <h3>현재 등록된 제품 목록</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: '20px' }}>
-        {products.map((p: any) => (
-          <div key={p.id} style={{ textAlign: 'center', border: '1px solid #eee', padding: '10px' }}>
-            <img src={p.image_url} style={{ width: '100%', height: '100px', objectFit: 'contain' }} />
-            <p style={{ fontWeight: 'bold', margin: '5px 0' }}>{p.title}</p>
-            <button onClick={async () => { if(confirm('삭제하시겠습니까?')) { await supabase.from('products').delete().eq('id', p.id); fetchProducts(); } }} style={{ color: 'red', fontSize: '12px', cursor: 'pointer' }}>삭제</button>
-          </div>
-        ))}
-      </div>
+      {/* 2. 고객 문의 목록 섹션 */}
+      <section>
+        <h2>📩 고객 문의 현황</h2>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px' }}>
+          <thead>
+            <tr style={{ backgroundColor: '#333', color: 'white' }}>
+              <th style={{ padding: '10px', border: '1px solid #ddd' }}>날짜</th>
+              <th style={{ padding: '10px', border: '1px solid #ddd' }}>고객명</th>
+              <th style={{ padding: '10px', border: '1px solid #ddd' }}>연락처</th>
+              <th style={{ padding: '10px', border: '1px solid #ddd' }}>문의내용</th>
+              <th style={{ padding: '10px', border: '1px solid #ddd' }}>관리</th>
+            </tr>
+          </thead>
+          <tbody>
+            {contacts.map((c) => (
+              <tr key={c.id} style={{ textAlign: 'center' }}>
+                <td style={{ padding: '10px', border: '1px solid #ddd', fontSize: '13px' }}>{new Date(c.created_at).toLocaleDateString()}</td>
+                <td style={{ padding: '10px', border: '1px solid #ddd', fontWeight: 'bold' }}>{c.name}</td>
+                <td style={{ padding: '10px', border: '1px solid #ddd' }}>{c.phone || c.email}</td>
+                <td style={{ padding: '10px', border: '1px solid #ddd', textAlign: 'left' }}>{c.message}</td>
+                <td style={{ padding: '10px', border: '1px solid #ddd' }}>
+                  <button onClick={async () => { if(confirm('문의를 삭제하시겠습니까?')) { await supabase.from('contacts').delete().eq('id', c.id); fetchData(); } }} style={{ color: 'red', cursor: 'pointer' }}>삭제</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {contacts.length === 0 && <p style={{ textAlign: 'center', padding: '20px' }}>접수된 문의가 없습니다.</p>}
+      </section>
     </div>
   );
 }
