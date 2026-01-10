@@ -9,8 +9,8 @@ export default function AdminPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [products, setProducts] = useState([]);
-  const [contacts, setContacts] = useState([]);
+  const [products, setProducts] = useState<any>([]); // any로 설정하여 aaa.png의 에러 차단
+  const [contacts, setContacts] = useState<any>([]);
   const [activeTab, setActiveTab] = useState('products');
 
   const [title, setTitle] = useState('');
@@ -25,12 +25,12 @@ export default function AdminPage() {
   };
 
   const fetchData = async () => {
-    // zz.png의 16라인 에러를 해결하기 위해 형식을 강제 지정하지 않습니다.
+    // aaa.png의 30라인 에러를 해결하는 핵심 부분입니다.
     const { data: pData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    setProducts(pData || []); 
+    if (pData) setProducts(pData);
     
     const { data: cData } = await supabase.from('contacts').select('*').order('created_at', { ascending: false });
-    setContacts(cData || []);
+    if (cData) setContacts(cData);
   };
 
   const handleUpload = async (e: any) => {
@@ -72,7 +72,7 @@ export default function AdminPage() {
           <textarea placeholder="설명" value={description} onChange={e => setDescription(e.target.value)} style={{ width: '100%', marginBottom: '10px', padding: '10px' }} />
           <input type="file" onChange={handleUpload} disabled={uploading} />
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '15px', marginTop: '20px' }}>
-            {products.map((p: any) => (
+            {products && products.map((p: any) => (
               <div key={p.id} style={{ border: '1px solid #ddd', padding: '10px', textAlign: 'center' }}>
                 <img src={p.image_url} style={{ width: '100%', height: '150px', objectFit: 'contain' }} />
                 <p>{p.title}</p>
@@ -87,7 +87,7 @@ export default function AdminPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr style={{ backgroundColor: '#f4f4f4' }}><th style={{ border: '1px solid #ddd', padding: '10px' }}>날짜</th><th style={{ border: '1px solid #ddd', padding: '10px' }}>성함/업체</th><th style={{ border: '1px solid #ddd', padding: '10px' }}>연락처</th><th style={{ border: '1px solid #ddd', padding: '10px' }}>내용</th></tr></thead>
             <tbody>
-              {contacts.map((c: any) => (
+              {contacts && contacts.map((c: any) => (
                 <tr key={c.id}>
                   <td style={{ border: '1px solid #ddd', padding: '10px' }}>{new Date(c.created_at).toLocaleDateString()}</td>
                   <td style={{ border: '1px solid #ddd', padding: '10px' }}>{c.name}</td>
