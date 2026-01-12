@@ -1,59 +1,103 @@
 'use client';
 // @ts-nocheck
-/* eslint-disable */
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient('https://hpkhxnjstxghtmkpdyyq.supabase.co', 'sb_publishable_Nzr0Zrtp2Qt0pnY0g7PNfA_XgGmN7_q');
 
-export default function Home() {
-  // 형식을 any로 고정하여 aq.png의 에러를 원천 차단합니다.
-  const [products, setProducts] = useState<any[]>([]);
+export default function AdminPage() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [products, setProducts] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [uploading, setUploading] = useState(false);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState(''); // 설명 상태 추가
 
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const { data } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-        // 데이터가 있든 없든 무조건 통과시킵니다.
-        setProducts((data as any) || []);
-      } catch (e) {
-        console.error(e);
-      }
+  const fetchData = async () => {
+    const { data: pData } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (pData) setProducts(pData);
+    const { data: cData } = await supabase.from('contacts').select('*').order('created_at', { ascending: false });
+    if (cData) setContacts(cData);
+  };
+
+  const handleLogin = () => {
+    if (email === 'admin@jinyoung.com' && password === '123456') {
+      setIsLoggedIn(true);
+      fetchData();
+    } else { alert('로그인 정보 오류'); }
+  };
+
+  const handleUpload = async (e: any) => {
+    const file = e.target.files?.[0];
+    if (!file || !title) return alert('제품명과 사진은 필수입니다!');
+    setUploading(true);
+    try {
+      const fileName = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.]/g, '')}`;
+      const { error: uploadError } = await supabase.storage.from('images').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from('images').getPublicUrl(fileName);
+      
+      // DB에 제목과 설명을 함께 저장
+      await supabase.from('products').insert([{ title, description, image_url: publicUrl }]);
+      
+      alert('제품 등록 완료!');
+      setTitle(''); setDescription(''); fetchData();
+    } catch (err) { alert('에러: ' + err.message); }
+    finally { setUploading(false); }
+  };
+
+  const deleteItem = async (table, id) => {
+    if (confirm('삭제하시겠습니까?')) {
+      await supabase.from(table).delete().eq('id', id);
+      fetchData();
     }
-    fetchProducts();
-  }, []);
+  };
+
+  if (!isLoggedIn) {
+    return (
+      <div style={{ padding: '100px 20px', textAlign: 'center' }}>
+        <h2>관리자 로그인</h2>
+        <input type="text" placeholder="아이디" onChange={e => setEmail(e.target.value)} /><br/>
+        <input type="password" placeholder="비밀번호" onChange={e => setPassword(e.target.value)} /><br/>
+        <button onClick={handleLogin}>로그인</button>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '1200px', margin: '0 auto' }}>
-      <header style={{ borderBottom: '3px solid #0056b3', paddingBottom: '20px', marginBottom: '40px' }}>
-        <h1 style={{ color: '#0056b3' }}>(주)진영 이엔지</h1>
-        <p>최고의 기술력, 대형표시기 및 자동화 시스템 전문 기업</p>
-      </header>
+    <div style={{ padding: '30px', fontFamily: 'sans-serif' }}>
+      <h1>⚙️ 진영이엔지 관리 시스템</h1>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '30px' }}>
+        <section style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '10px', border: '1px solid #ddd' }}>
+          <h2>📦 제품 등록</h2>
+          <input placeholder="제품명" value={title} onChange={e => setTitle(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px' }} />
+          <textarea placeholder="제품 설명 (예: 규격, 특징 등)" value={description} onChange={e => setDescription(e.target.value)} style={{ width: '100%', padding: '10px', marginBottom: '10px', height: '80px' }} />
+          <input type="file" onChange={handleUpload} disabled={uploading} />
+          <hr/>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '10px' }}>
+            {products.map(p => (
+              <div key={p.id} style={{ border: '1px solid #eee', padding: '5px', textAlign: 'center' }}>
+                <img src={p.image_url} style={{ width: '100%', height: '80px', objectFit: 'contain' }} />
+                <p style={{ fontSize: '11px', fontWeight: 'bold' }}>{p.title}</p>
+                <button onClick={() => deleteItem('products', p.id)} style={{ color: 'red', fontSize: '10px' }}>삭제</button>
+              </div>
+            ))}
+          </div>
+        </section>
 
-      {/* 찾아오시는 길 */}
-      <section style={{ marginBottom: '60px', textAlign: 'center' }}>
-        <h2 style={{ borderLeft: '6px solid #0056b3', paddingLeft: '15px', display: 'inline-block' }}>찾아오시는 길</h2>
-        <p style={{ margin: '20px 0' }}>서울 영등포구 양산로3길 15, 1층</p>
-        <button 
-          onClick={() => window.open('https://map.naver.com/v5/search/서울 영등포구 양산로3길 15', '_blank')} 
-          style={{ padding: '15px 30px', backgroundColor: '#03C75A', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}
-        >
-          네이버 지도에서 위치 보기
-        </button>
-      </section>
-
-      <section style={{ marginBottom: '60px' }}>
-        <h2>제품 안내</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '30px' }}>
-          {products.map((product: any) => (
-            <div key={product.id} style={{ border: '1px solid #eee', padding: '20px', textAlign: 'center', borderRadius: '10px' }}>
-              <img src={product.image_url} alt={product.title} style={{ width: '100%', height: '200px', objectFit: 'contain' }} />
-              <h3 style={{ marginTop: '15px' }}>{product.title}</h3>
-              <p style={{ color: '#666' }}>{product.description}</p>
+        <section style={{ backgroundColor: '#fff', padding: '20px', borderRadius: '10px', border: '1px solid #ddd' }}>
+          <h2>📩 고객 문의</h2>
+          {contacts.map(c => (
+            <div key={c.id} style={{ borderBottom: '1px solid #eee', padding: '10px 0' }}>
+              <strong>{c.name}</strong> ({c.phone})<br/>
+              <p style={{ fontSize: '14px', color: '#555' }}>{c.message}</p>
+              <button onClick={() => deleteItem('contacts', c.id)} style={{ color: 'red', fontSize: '11px' }}>문의 삭제</button>
             </div>
           ))}
-        </div>
-      </section>
+        </section>
+      </div>
     </div>
   );
 }
